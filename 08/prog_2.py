@@ -1,12 +1,6 @@
 import os
-import json
-from threading import Thread
 from datetime import datetime
-
-###################################################################
-# BRUTE FORCE SOLUTION TAKES ~ 20k HOURS TO COMPUTE THE RESULT... #
-#               CHECK LCM FOR REALISTIC SOLUTION                  #
-###################################################################
+from math import lcm
 
 def load_input(file_path):
     data = []
@@ -51,37 +45,39 @@ def reindex_as_int_nodes(raw_nodes):
         end_nodes_indexes[index_node] = nodes_indexes_mapp[end_nodes_indexes[index_node]]
     return reindexed_nodes, start_nodes_indexes, end_nodes_indexes, nodes_indexes_mapp 
 
-def check_end_reached(nodes):
+def check_end_reached(node):
     """
         Checks if we reached the end
     """
-    for node in nodes:
-        if not node in END_NODES:
-            return False
-    return True
+    if not node in END_NODES:
+        return False
+    else:
+        return True
 
 input_file_path = os.path.join(os.getcwd(), "input.txt")
 raw_nodes = parse_input(load_input(input_file_path))
 
 reindexed_nodes, START_NODES, END_NODES, _ = reindex_as_int_nodes(raw_nodes)
+print(f'{START_NODES=}')
+print(f'{END_NODES=}')
 
 instructions = raw_nodes["instructions"]
 
-result = 0
-found = False
-current_nodes = START_NODES
 start = datetime.now()
-while not found:
-    for instruct in instructions:
-        if check_end_reached(current_nodes):
-            found = True
-            break
-        for index_in_current_nodes, node in enumerate(current_nodes):
-            current_nodes[index_in_current_nodes] = reindexed_nodes[node][instruct]
-        result += 1
-        if result%10000000 == 0:
-            print('10M reached')
-            found = True
-            break
+nodes_nb_steps = [0 for x in range(0, len(START_NODES))]
+for index_to_process_node, to_process_node in enumerate(START_NODES):
+    nb_step = 0
+    found = False
+    current_node = to_process_node
+    while not found:
+        for instruct in instructions:
+            if check_end_reached(current_node):
+                found = True
+                break
+            current_node = reindexed_nodes[current_node][instruct]
+            nb_step += 1
+    nodes_nb_steps[index_to_process_node] = nb_step
+print(nodes_nb_steps)
+result = lcm(nodes_nb_steps[0], nodes_nb_steps[1], nodes_nb_steps[2], nodes_nb_steps[3], nodes_nb_steps[4], nodes_nb_steps[5])
 print((datetime.now() - start).total_seconds())
 print(result)
