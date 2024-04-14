@@ -1,7 +1,20 @@
 use std::{env, fs, path::{Path, PathBuf}};
 
 /// Return the input file as list of lines
-fn get_input(filepath: &Path) -> Vec<String> {
+fn get_input(filename: &str) -> Vec<String> {
+    let mut filepath: PathBuf = PathBuf::new();
+    match env::current_dir() {
+        Ok(wd) => {
+            filepath = wd;
+        }
+        Err(error) => {
+            eprintln!("Error while getting the current working directory: {error}");
+            ()
+        }
+    }
+    let input_dir = "files";
+    filepath = filepath.join(Path::new(input_dir)).join(Path::new(filename));
+
     let mut vec_lines: Vec<String> = Vec::new(); 
     match fs::read_to_string(filepath) {
         Ok(content) => {
@@ -49,20 +62,8 @@ impl Number {
 
 fn main() {
     // Get the input data
-    let mut filepath: PathBuf = PathBuf::new();
-    match env::current_dir() {
-        Ok(wd) => {
-            filepath = wd;
-        }
-        Err(error) => {
-            eprintln!("Error while getting the current working directory: {error}");
-            ()
-        }
-    }
-    let input_dir = "files";
     let input_filename = "input.txt";
-    filepath = filepath.join(Path::new(input_dir)).join(Path::new(input_filename));
-    let input_lines = get_input(&(filepath.as_path()));
+    let input_lines = get_input(input_filename);
     
     // Get list of numbers
     const NUMBER_LIST_SIZE: usize = 10;

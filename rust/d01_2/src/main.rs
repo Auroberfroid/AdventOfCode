@@ -1,7 +1,21 @@
 use std::{env, fs, path::{Path, PathBuf}};
 
 /// Return the input file as list of lines
-fn get_input(filepath: &Path) -> Vec<String> {
+fn get_input(filename: &str) -> Vec<String> {
+    // Get the input data
+    let mut filepath: PathBuf = PathBuf::new();
+    match env::current_dir() {
+        Ok(wd) => {
+            filepath = wd;
+        }
+        Err(error) => {
+            eprintln!("Error while getting the current working directory: {error}");
+            ()
+        }
+    }
+    let input_dir = "files";
+    filepath = filepath.join(Path::new(input_dir)).join(Path::new(filename));
+
     let mut vec_lines: Vec<String> = Vec::new(); 
     match fs::read_to_string(filepath) {
         Ok(content) => {
@@ -89,33 +103,20 @@ impl Number {
 }
 
 fn main() {
-    // Get the input data
-    let mut filepath: PathBuf = PathBuf::new();
-    match env::current_dir() {
-        Ok(wd) => {
-            filepath = wd;
-        }
-        Err(error) => {
-            eprintln!("Error while getting the current working directory: {error}");
-            ()
-        }
-    }
-    let input_dir = "files";
     let input_filename = "input.txt";
-    filepath = filepath.join(Path::new(input_dir)).join(Path::new(input_filename));
-    let input_lines = get_input(&(filepath.as_path()));
+    let input_lines = get_input(input_filename);
     
     // Get list of numbers
     let numbers: [Number; 10] = [Number {numeric: 0, letters: String::from("zero")},
-                                               Number {numeric: 1, letters: String::from("one")},
-                                               Number {numeric: 2, letters: String::from("two")},
-                                               Number {numeric: 3, letters: String::from("three")},
-                                               Number {numeric: 4, letters: String::from("four")},
-                                               Number {numeric: 5, letters: String::from("five")},
-                                               Number {numeric: 6, letters: String::from("six")},
-                                               Number {numeric: 7, letters: String::from("seven")},
-                                               Number {numeric: 8, letters: String::from("eight")},
-                                               Number {numeric: 9, letters: String::from("nine")}];
+                                 Number {numeric: 1, letters: String::from("one")},
+                                 Number {numeric: 2, letters: String::from("two")},
+                                 Number {numeric: 3, letters: String::from("three")},
+                                 Number {numeric: 4, letters: String::from("four")},
+                                 Number {numeric: 5, letters: String::from("five")},
+                                 Number {numeric: 6, letters: String::from("six")},
+                                 Number {numeric: 7, letters: String::from("seven")},
+                                 Number {numeric: 8, letters: String::from("eight")},
+                                 Number {numeric: 9, letters: String::from("nine")}];
 
     let mut result: u64 = 0;
     // Process lines
@@ -127,7 +128,6 @@ fn main() {
                 match index.try_into() {
                     Ok(val) => {
                         left_digit = val;
-                        println!("ARO DEBUG: left: {}", left_digit);
                     }
                     Err(error) => {
                         eprintln!("Error while converting usize into u8: {error}");
@@ -148,7 +148,6 @@ fn main() {
                 match index.try_into() {
                     Ok(val) => {
                         right_digit = val;
-                        println!("ARO DEBUG: right: {}", right_digit);
                     }
                     Err(error) => {
                         eprintln!("Error while converting usize into u8: {error}");
