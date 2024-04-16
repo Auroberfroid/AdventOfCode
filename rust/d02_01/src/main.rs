@@ -10,7 +10,7 @@ struct Game {
 }
 
 impl Game {
-    fn new( id: u32, red: u8, green: u8, blue: u8) -> Game {
+    fn new(id: u32, red: u8, green: u8, blue: u8) -> Game {
         Self {
             id,
             red: red,
