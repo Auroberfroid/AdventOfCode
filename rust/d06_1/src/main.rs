@@ -97,7 +97,7 @@ fn get_input(filename: &str) -> Result<Vec<BoatRace>, String> {
 }
 
 
-fn process_boat_races(boat_race: &BoatRace) -> usize {
+fn process_boat_race(boat_race: &BoatRace) -> usize {
     let mut nb_wins: usize = 0;
     for charging_time in 0..boat_race.time {
         let traveled_distance = (boat_race.time - charging_time) * charging_time;
@@ -131,7 +131,7 @@ fn main() -> Result<(), i8>{
     let mut result: usize = 1;
     for boat_race in boatrace_vec.iter() {
         println!("{:?}", boat_race);
-        let nb_wins = process_boat_races(boat_race);
+        let nb_wins = process_boat_race(boat_race);
         if nb_wins > 0 {
             result *= nb_wins;
         }
