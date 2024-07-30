@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::current_dir;
 use std::fs::read_to_string;
 use std::io::{stdout, Write};
@@ -8,7 +8,7 @@ use ansi_term::Colour;
 use crossterm::{cursor, ExecutableCommand};
 
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 /// Represents the tile type (pipe), named after their possible connection
 #[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
@@ -99,6 +99,19 @@ impl TileType {
                 }
             }
             &Self::Unknown => { Err(format!("No connection allowed from a {:?} tile...", self)) }
+        }
+    }
+
+    fn get_possible_squeeze_directions(&self) -> Option<HashSet<Direction>> {
+        match self {
+            &Self::Ground => { None }
+            &Self::NorthSouth => { Some(HashSet::<Direction>::from([Direction::West, Direction::East])) }
+            &Self::EastWest => { Some(HashSet::<Direction>::from([Direction::North, Direction::South])) }
+            &Self::NorthEast => { Some(HashSet::<Direction>::from([Direction::West, Direction::South])) }
+            &Self::NorthWest => { Some(HashSet::<Direction>::from([Direction::East, Direction::North])) }
+            &Self::SouthWest => { Some(HashSet::<Direction>::from([Direction::North, Direction::East])) }
+            &Self::SouthEast => { Some(HashSet::<Direction>::from([Direction::North, Direction::West])) }
+            &Self::Unknown => { panic!("Cannot get a possible squeeze direction from a {:?}", *self); }
         }
     }
 }
@@ -232,6 +245,8 @@ impl Tile {
 /// Represents the squeezed rat between 2 pipes movig within the tilemap
 #[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
 struct SqueezedRat {
+    /// 0: North or West
+    /// 1: South or East
     coords: [Coords; 2]
 }
 
@@ -250,21 +265,101 @@ impl SqueezedRat {
         *self.coords.get(0).unwrap() - *self.coords.get(1).unwrap()
     }
 
-    /// Returns directions a squeezed rat can head toward to (only 2)
-    fn get_direction(&self) -> Result<[Direction; 2], String> {
+    /// Returns coords a squeezed rat may be able to go 
+    /// - \[\[NW, SW\], \[NE, SE\]\]
+    fn get_possibly_accessible_coords(&self) -> Result<[[Coords; 2]; 2], String> {
         // Shouldn't need to wrap it in result, but we never know...
         if [Coords::new(1, 0), Coords::new(-1, 0)].contains(&self.get_detla_coords()) {
-            Ok([Direction::West, Direction::East])
+            Ok([[(*self.coords.get(0).unwrap() - Coords::new(0, 1)), 
+                 (*self.coords.get(1).unwrap() - Coords::new(0, 1))], 
+                [(*self.coords.get(0).unwrap() + Coords::new(0, 1)), 
+                 (*self.coords.get(1).unwrap() + Coords::new(0, 1))]])
         }
         else if [Coords::new(0, 1), Coords::new(0, -1)].contains(&self.get_detla_coords()) {
-            Ok([Direction::North, Direction::North])
+            Ok([[(*self.coords.get(0).unwrap() - Coords::new(1, 0)), 
+                 (*self.coords.get(1).unwrap() - Coords::new(1, 0))], 
+                [(*self.coords.get(0).unwrap() + Coords::new(1, 0)), 
+                 (*self.coords.get(1).unwrap() + Coords::new(1, 0))]])
         }
         else {
             Err(format!("Error while getting squeezed rat direction (coords.0: {:?} && coords.1: {:?})", *self.coords.get(0).unwrap(), *self.coords.get(0).unwrap()))
         }
     }
-
 }
+
+fn fetch_next_rat_tiles(squeezed_rat: &mut SqueezedRat, hm_table: &mut HashMap<Coords, Tile>) -> Result<(), String> {
+    // Get available coords
+    let available_coords: [[Coords; 2]; 2];
+    match squeezed_rat.get_possibly_accessible_coords() {
+        Ok(coords) => {
+            available_coords = coords;
+        }
+        Err(error) =>{
+            let err_msg = format!("[Error while getting the current directory: {error}]");
+            return Err(err_msg);
+        }
+    }
+
+    // Get the coords where its possible to go
+    // +-------+-------+-------+        +-------+-------+
+    // | Nw-nW | ZR-Nw | Ne-nE |        | nW-Nw | nE-Ne |
+    // +-------+-------+-------+        +-------+-------+
+    // | Sw-sW | ZR-Se | Se-sE |        | ZR-nW | ZR-sE |
+    // +-------+-------+-------+        +-------+-------+
+    //                                  | sW-Sw | sE-Se |
+    //                                  +-------+-------+
+    //
+    // We first get tiletypes of each tile represented in drawing above
+    let zr_nw_tiletype = hm_table.get(squeezed_rat.coords.get(0).unwrap()).unwrap().tile_type;
+    let zr_se_tiletype = hm_table.get(squeezed_rat.coords.get(1).unwrap()).unwrap().tile_type;
+    let nw_tiletype = hm_table.get(available_coords.get(0).unwrap().get(0).unwrap()).unwrap().tile_type;
+    let sw_tiletype = hm_table.get(available_coords.get(0).unwrap().get(1).unwrap()).unwrap().tile_type;
+    let ne_tiletype = hm_table.get(available_coords.get(1).unwrap().get(0).unwrap()).unwrap().tile_type;
+    let se_tiletype = hm_table.get(available_coords.get(1).unwrap().get(1).unwrap()).unwrap().tile_type;
+
+
+    // Intersection of (sqzd_r north/west) with (north/west) avlbl
+    let intersect_zr_nw_x_nw: HashSet<Direction> = 
+    zr_nw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &nw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Intersection of (north/west) with (south/west) avlbl
+    let intersect_nw_x_sw: HashSet<Direction> = 
+    nw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &sw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Intersection of (sqzd_r south/east) with (south/west) avlbl
+    let intersect_zr_se_x_sw: HashSet<Direction> = 
+    zr_se_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &sw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Intersection of (sqzd_r north/west) with (north/east) avlbl
+    let intersect_zr_nw_x_ne: HashSet<Direction> = 
+    zr_nw_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &ne_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Intersection of (north/east) with (south/east) avlbl
+    let intersect_ne_x_se: HashSet<Direction> = 
+    ne_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &se_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Intersection of (sqzd_r south/east) with (south/east) avlbl
+    let intersect_zr_se_x_se: HashSet<Direction> = 
+    zr_se_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))
+    .intersection(
+    &se_tiletype.get_possible_squeeze_directions().unwrap_or(HashSet::<Direction>::from([Direction::North, Direction::East, Direction::South, Direction::West]))).cloned().collect();
+
+    // Now check the intersections results to check where its possible to go
+
+    Ok(())
+}
+
+
 
 fn get_input(filename: &str) -> Result<(HashMap<Coords, Tile>, Coords, i64, i64), String> {
     // Open the file
@@ -328,7 +423,7 @@ fn get_input(filename: &str) -> Result<(HashMap<Coords, Tile>, Coords, i64, i64)
     Ok((hm_tiles, start_coords, x, y))
 }
 
-fn display_tiles_inplace(hm_tiles: &HashMap<Coords, Tile>, max_x: &i64, max_y: &i64, mut file_to_write: &std::io::Stdout) -> () {
+fn display_tiles_inplace(hm_tiles: &HashMap<Coords, Tile>, max_x: &i64, max_y: &i64, file_to_write: &mut std::io::Stdout) -> () {
     let mut tile: &Tile;
     let mut screen_content = String::new();
     for y in 0..max_y+1 {
@@ -528,7 +623,7 @@ fn follow_pipes(hm_tiles: &mut HashMap<Coords, Tile>, start_coords: &Coords, dis
             }
         }
         if display {
-            display_tiles_inplace(hm_tiles, &max_x, &max_y, &stdout());
+            display_tiles_inplace(hm_tiles, &max_x, &max_y, &mut stdout());
         }
     }
 
@@ -788,6 +883,12 @@ fn main() -> Result<(), i8>{
     let loop_contouring = define_sure_out(&mut hm_tiles, &max_x, &max_y, false, false);
     // display_tiles(&hm_tiles, &max_x, &max_y);
     display_tiles_map_outer_loop_overlap(&hm_tiles, &loop_contouring, &max_x, &max_y);
+
+    let mut sqzd_rat = SqueezedRat::new([Coords::new(10, 10), Coords::new(10, 11)]).unwrap();
+
+    println!("sqzd coords: {:?}", sqzd_rat.coords);
+
+    fetch_next_rat_tiles(&mut sqzd_rat, &mut hm_tiles);
 
     Ok(())
 }
