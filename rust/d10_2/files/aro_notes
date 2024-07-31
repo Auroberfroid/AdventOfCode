@@ -1,0 +1,70 @@
+sqzd coords: [Coords { x: 71, y: 19 }, Coords { x: 71, y: 20 }]
+fetch_next_rat_tile: available coords: {
+    NWNW: Coords {
+        x: 70,
+        y: 19,
+    },
+    SWSW: Coords {
+        x: 70,
+        y: 20,
+    },
+    SESE: Coords {
+        x: 72,
+        y: 20,
+    },
+    NENE: Coords {
+        x: 72,
+        y: 19,
+    },
+}
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [ZRNW, NWNW]
+fetch_next_rat_tiles: squeeze_dir: North
+fetch_next_rat_tiles: possible squeeze directions of: NorthEast: ZRNW: {North}
+fetch_next_rat_tiles: possible squeeze directions of: NorthSouth: NWNW: {North}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: [North]
+###################################################
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [NWNW, SWSW]
+fetch_next_rat_tiles: squeeze_dir: West
+fetch_next_rat_tiles: possible squeeze directions of: NorthSouth: NWNW: {}
+fetch_next_rat_tiles: possible squeeze directions of: NorthSouth: SWSW: {}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: []
+###################################################
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [ZRSE, SWSW]
+fetch_next_rat_tiles: squeeze_dir: South
+fetch_next_rat_tiles: possible squeeze directions of: SouthWest: ZRSE: {South}
+fetch_next_rat_tiles: possible squeeze directions of: NorthSouth: SWSW: {South}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: [South] #ARO MANUAL NOTE FOR LATER -> add a parameter like is on right/left/top/bot ? additionally to direction to avoid this kind of false true
+###################################################
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [ZRNW, NENE]
+fetch_next_rat_tiles: squeeze_dir: North
+fetch_next_rat_tiles: possible squeeze directions of: NorthEast: ZRNW: {North}
+fetch_next_rat_tiles: possible squeeze directions of: EastWest: NENE: {}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: []
+###################################################
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [NENE, SESE]
+fetch_next_rat_tiles: squeeze_dir: East
+fetch_next_rat_tiles: possible squeeze directions of: EastWest: NENE: {East}
+fetch_next_rat_tiles: possible squeeze directions of: SouthEast: SESE: {East}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: [East]
+###################################################
+###################################################
+fetch_next_rat_tiles: sqzr_area_duals: [ZRSE, SESE]
+fetch_next_rat_tiles: squeeze_dir: South
+fetch_next_rat_tiles: possible squeeze directions of: SouthWest: ZRSE: {South}
+fetch_next_rat_tiles: possible squeeze directions of: SouthEast: SESE: {South}
+fetch_next_rat_tiles: tiles_intersect_dir_vec: [South]
+###################################################
+
+// Get the coords where its possible to go
+    // +-------+-------+-------+        +-------+-------+
+    // | Nw-nW | ZR-Nw | Ne-nE |        | nW-Nw | nE-Ne |
+    // +-------+-------+-------+        +-------+-------+
+    // | Sw-sW | ZR-Se | Se-sE |        | ZR-nW | ZR-sE |
+    // +-------+-------+-------+        +-------+-------+
+    //                                  | sW-Sw | sE-Se |
+    //                                  +-------+-------+
