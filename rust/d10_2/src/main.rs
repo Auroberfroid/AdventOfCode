@@ -103,79 +103,94 @@ impl TileType {
     }
 
     /// Returns the possible direction that can be taken from a given tile (None == No dir)
-    fn get_possible_squeeze_directions(&self, dir: &Direction) -> Option<HashSet<Direction>> {
+    fn get_possible_squeeze_directions(&self, dir: &Direction, rel_position: &Direction) -> Option<HashSet<Direction>> {
         match self {
             &Self::Ground => { Some(HashSet::<Direction>::from([Direction::North, Direction::West, Direction::South, Direction::East])) }
             &Self::NorthSouth => { 
                 match dir {
-                    &Direction::North => {
-                        Some(HashSet::<Direction>::from([Direction::North]))
-                    }
-                    &Direction::South => {
-                        Some(HashSet::<Direction>::from([Direction::South]))
+                    &Direction::North | &Direction::South => {
+                        match rel_position {
+                            &Direction::East | &Direction::West => {
+                                Some(HashSet::<Direction>::from([dir.clone()]))
+                            }
+                            _ => {
+                                None
+                            }
+                        }
                     }
                     _ => { None }
                 }
             }
             &Self::EastWest => { 
                 match dir {
-                    &Direction::East => {
-                        Some(HashSet::<Direction>::from([Direction::East]))
-                    }
-                    &Direction::West => {
-                        Some(HashSet::<Direction>::from([Direction::West]))
+                    &Direction::East | &Direction::West => {
+                        match rel_position {
+                            &Direction::North | &Direction::South => {
+                                Some(HashSet::<Direction>::from([dir.clone()]))
+                            }
+                            _ => {
+                                None
+                            }
+                        }
                     }
                     _ => { None }
                 }
             }
             &Self::NorthEast => { 
                 match dir {
-                    &Direction::North => {
-                        Some(HashSet::<Direction>::from([Direction::North]))
-                    }
-                    &Direction::East => {
-                        Some(HashSet::<Direction>::from([Direction::East]))
+                    &Direction::North | &Direction::East => {
+                        match rel_position {
+                            &Direction::South | &Direction::West => {
+                                Some(HashSet::<Direction>::from([dir.clone()]))
+                            }
+                            _ => { None }
+                        }
                     }
                     _ => { None }
                 }
             }
             &Self::NorthWest => { 
                 match dir {
-                    &Direction::North => {
-                        Some(HashSet::<Direction>::from([Direction::North]))
-                    }
-                    &Direction::West => {
-                        Some(HashSet::<Direction>::from([Direction::West]))
+                    &Direction::North | &Direction::West => {
+                        match rel_position {
+                            &Direction::South | &Direction::East => {
+                                Some(HashSet::<Direction>::from([dir.clone()]))
+                            }
+                            _ => { None }
+                        }
                     }
                     _ => { None }
                 }
             }
             &Self::SouthWest => {
                 match dir {
-                    &Direction::South => {
-                        Some(HashSet::<Direction>::from([Direction::South]))
-                    }
-                    &Direction::West => {
-                        Some(HashSet::<Direction>::from([Direction::West]))
+                    &Direction::South | &Direction::West => {
+                        match rel_position {
+                            &Direction::North | &Direction::East => {
+                                Some(HashSet::<Direction>::from([Direction::South]))
+                            }
+                            _ => { None }
+                        }
                     }
                     _ => { None }
                 }
             }
             &Self::SouthEast => { 
                 match dir {
-                &Direction::South => {
-                    Some(HashSet::<Direction>::from([Direction::South]))
-                }
-                &Direction::East => {
-                    Some(HashSet::<Direction>::from([Direction::East]))
-                }
-                _ => { None }
+                    &Direction::South | &Direction::East => {
+                        match rel_position {
+                            &Direction::North | &Direction::West => {
+                                Some(HashSet::<Direction>::from([dir.clone()]))
+                            }
+                            _ => { None }
+                        }
+                    }
+                    _ => { None }
                 }
             }
             &Self::Unknown => { panic!("Cannot get a possible squeeze direction from a {:?} tile", *self); }
         }
     }
-
 }
 
 /// Represents a direction, its the direction pointed by the vector
@@ -365,54 +380,80 @@ impl SqueezedRat {
 
     /// Returns the direction that the squeezed rat will face between the desired tile location,
     /// depending on the rat config (horizontal or vertical) and the tile that it will try to squeeze between
-    fn get_squeeze_direction(&self, tile_area_1: &SqueezedRatAreas, tile_area_2: &SqueezedRatAreas) -> Result<Direction, String> {
+    fn get_squeeze_direction(&self, tile_area_1: &SqueezedRatAreas, tile_area_2: &SqueezedRatAreas) -> Result<HashMap<SqueezedRatAreas, Direction>, String> {
         // Checks if the rat is squeezed horizontally or vertically
+        let mut hm_res =  HashMap::<SqueezedRatAreas, Direction>::new();
         if self.is_horizontal().unwrap() {
             if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NWNW) {
-                Ok(Direction::North)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::North);
+                hm_res.insert(SqueezedRatAreas::ZRNW, Direction::West);
+                hm_res.insert(SqueezedRatAreas::NWNW, Direction::East);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NWNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SWSW) {
-                Ok(Direction::West)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::West);
+                hm_res.insert(SqueezedRatAreas::NWNW, Direction::South);
+                hm_res.insert(SqueezedRatAreas::SWSW, Direction::North);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRSE) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SWSW) {
-                Ok(Direction::South)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::South);
+                hm_res.insert(SqueezedRatAreas::ZRSE, Direction::West);
+                hm_res.insert(SqueezedRatAreas::SWSW, Direction::East);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NENE) {
-                Ok(Direction::North)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::North);
+                hm_res.insert(SqueezedRatAreas::ZRNW, Direction::East);
+                hm_res.insert(SqueezedRatAreas::NENE, Direction::West);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NENE) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SESE) {
-                Ok(Direction::East)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::East);
+                hm_res.insert(SqueezedRatAreas::NENE, Direction::South);
+                hm_res.insert(SqueezedRatAreas::SESE, Direction::North);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRSE) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SESE) {
-                Ok(Direction::South)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::South);
+                hm_res.insert(SqueezedRatAreas::ZRSE, Direction::East);
+                hm_res.insert(SqueezedRatAreas::SESE, Direction::West);
             }
             else {
-                Err(format!("{:?} & {:?} are NOT adjacent in HORIZONTAL config, can't get a squeeze direction from those", tile_area_1, tile_area_2))
+                return Err(format!("{:?} & {:?} are NOT adjacent in HORIZONTAL config, can't get a squeeze direction from those", tile_area_1, tile_area_2));
             }
         } 
         else {
             if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NWNW) {
-                Ok(Direction::West)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::West);
+                hm_res.insert(SqueezedRatAreas::ZRNW, Direction::North);
+                hm_res.insert(SqueezedRatAreas::NENE, Direction::South);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NWNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NENE) {
-                Ok(Direction::North)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::North);
+                hm_res.insert(SqueezedRatAreas::NWNW, Direction::East);
+                hm_res.insert(SqueezedRatAreas::NENE, Direction::West);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRSE) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::NENE) {
-                Ok(Direction::East)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::East);
+                hm_res.insert(SqueezedRatAreas::ZRSE, Direction::North);
+                hm_res.insert(SqueezedRatAreas::NENE, Direction::South);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRNW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SWSW) {
-                Ok(Direction::West)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::West);
+                hm_res.insert(SqueezedRatAreas::ZRNW, Direction::South);
+                hm_res.insert(SqueezedRatAreas::SWSW, Direction::North);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SWSW) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SESE) {
-                Ok(Direction::South)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::South);
+                hm_res.insert(SqueezedRatAreas::SWSW, Direction::East);
+                hm_res.insert(SqueezedRatAreas::SESE, Direction::West);
             }
             else if [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::ZRSE) && [tile_area_1, tile_area_2].contains(&&SqueezedRatAreas::SESE) {
-                Ok(Direction::East)
+                hm_res.insert(SqueezedRatAreas::MAGIC, Direction::East);
+                hm_res.insert(SqueezedRatAreas::ZRSE, Direction::South);
+                hm_res.insert(SqueezedRatAreas::SESE, Direction::North);
             }
             else {
-                Err(format!("{:?} & {:?} are NOT adjacent in VERTICAL config, can't get a squeeze direction from those", tile_area_1, tile_area_2))
+                return Err(format!("{:?} & {:?} are NOT adjacent in VERTICAL config, can't get a squeeze direction from those", tile_area_1, tile_area_2));
             }
         }
+        Ok(hm_res)
     }
 
     /// Returns the intersections that are possible in the current rat config (horiz vs vertic)
@@ -444,10 +485,11 @@ enum SqueezedRatAreas {
     NWNW,
     SWSW,
     NENE,
-    SESE
+    SESE,
+    MAGIC
 }
 
-fn fetch_next_rat_tiles(squeezed_rat: &mut SqueezedRat, hm_table: &mut HashMap<Coords, Tile>) -> Result<(), String> {
+fn fetch_next_rat_tiles(squeezed_rat: &SqueezedRat, hm_table: &HashMap<Coords, Tile>) -> Option<Vec::<[Coords; 2]>> {
     // Get available coords
     let available_coords = squeezed_rat.get_possibly_accessible_coords();
     // println!("fetch_next_rat_tile: available coords: {:#?}", available_coords);
@@ -462,17 +504,18 @@ fn fetch_next_rat_tiles(squeezed_rat: &mut SqueezedRat, hm_table: &mut HashMap<C
     //                                  +-------+-------+
     //
     // We first get tiletypes of each tile, represented in drawing above, in a hashmap
-    let mut hm_sqzdrarea_tiletype =  HashMap::<SqueezedRatAreas, TileType>::new();
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::ZRNW, hm_table.get(squeezed_rat.coords.get(0).unwrap()).unwrap().tile_type);
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::ZRSE, hm_table.get(squeezed_rat.coords.get(1).unwrap()).unwrap().tile_type);
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::NWNW, hm_table.get(available_coords.get(&SqueezedRatAreas::NWNW).unwrap()).unwrap().tile_type);
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::SWSW, hm_table.get(available_coords.get(&SqueezedRatAreas::SWSW).unwrap()).unwrap().tile_type);
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::NENE, hm_table.get(available_coords.get(&SqueezedRatAreas::NENE).unwrap()).unwrap().tile_type);
-    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::SESE, hm_table.get(available_coords.get(&SqueezedRatAreas::SESE).unwrap()).unwrap().tile_type);
+    let mut hm_sqzdrarea_tiletype =  HashMap::<SqueezedRatAreas, Tile>::new();
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::ZRNW, hm_table.get(squeezed_rat.coords.get(0).unwrap()).unwrap().clone());
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::ZRSE, hm_table.get(squeezed_rat.coords.get(1).unwrap()).unwrap().clone());
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::NWNW, hm_table.get(available_coords.get(&SqueezedRatAreas::NWNW).unwrap()).unwrap().clone());
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::SWSW, hm_table.get(available_coords.get(&SqueezedRatAreas::SWSW).unwrap()).unwrap().clone());
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::NENE, hm_table.get(available_coords.get(&SqueezedRatAreas::NENE).unwrap()).unwrap().clone());
+    hm_sqzdrarea_tiletype.insert(SqueezedRatAreas::SESE, hm_table.get(available_coords.get(&SqueezedRatAreas::SESE).unwrap()).unwrap().clone());
 
     // get_squeezed_r_areas_combination() -> [[SQZDRAREA1;SQZDRAREA2]]
-    let mut squeeze_dir: Direction;
+    let mut squeeze_dir: HashMap<SqueezedRatAreas, Direction>;
     let mut tiles_intersect_dir_vec: Vec::<Direction>;
+    let mut squeezed_areas_we_move = Vec::<[Coords; 2]>::new();
     for sqzr_area_duals in squeezed_rat.get_squeezed_r_areas_combination() {
         squeeze_dir = squeezed_rat.get_squeeze_direction(sqzr_area_duals.get(0).unwrap(), sqzr_area_duals.get(1).unwrap()).unwrap();
         // tiles_intersect_dir_vec = hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap()
@@ -482,31 +525,33 @@ fn fetch_next_rat_tiles(squeezed_rat: &mut SqueezedRat, hm_table: &mut HashMap<C
         //                                                    .get_possible_squeeze_directions(&squeeze_dir).unwrap_or(HashSet::<Direction>::new())
         //                                                ).cloned().collect();
         
-        let tmp_debug_0 = hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap()
-                                                                   .get_possible_squeeze_directions(&squeeze_dir).unwrap_or(HashSet::<Direction>::new());
-        let tmp_debug_1 = hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(1).unwrap()).unwrap()
-                                                                   .get_possible_squeeze_directions(&squeeze_dir).unwrap_or(HashSet::<Direction>::new());
+        let tmp_debug_0 = hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap().tile_type
+                                                                   .get_possible_squeeze_directions(squeeze_dir.get(&SqueezedRatAreas::MAGIC).unwrap(), squeeze_dir.get(sqzr_area_duals.get(0).unwrap()).unwrap()).unwrap_or(HashSet::<Direction>::new());
+        let tmp_debug_1 = hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(1).unwrap()).unwrap().tile_type
+                                                                   .get_possible_squeeze_directions(squeeze_dir.get(&SqueezedRatAreas::MAGIC).unwrap(), squeeze_dir.get(sqzr_area_duals.get(1).unwrap()).unwrap()).unwrap_or(HashSet::<Direction>::new());
 
         tiles_intersect_dir_vec = tmp_debug_0.intersection(&tmp_debug_1).cloned().collect();
+
+        if tiles_intersect_dir_vec.len() > 0 {
+            squeezed_areas_we_move.push([hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap().coords, hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(1).unwrap()).unwrap().coords])
+        }
                                                        
-        println!("###################################################");
-        println!("fetch_next_rat_tiles: sqzr_area_duals: {:?}", sqzr_area_duals);
-        println!("fetch_next_rat_tiles: squeeze_dir: {:?}", squeeze_dir);
-        println!("fetch_next_rat_tiles: possible squeeze directions of: {:?}: {:?}: {:?}", hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap(), sqzr_area_duals.get(0).unwrap(), tmp_debug_0);
-        println!("fetch_next_rat_tiles: possible squeeze directions of: {:?}: {:?}: {:?}", hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(1).unwrap()).unwrap(), sqzr_area_duals.get(1).unwrap(), tmp_debug_1);
-        println!("fetch_next_rat_tiles: tiles_intersect_dir_vec: {:?}", tiles_intersect_dir_vec);
-        println!("###################################################");
+        // println!("###################################################");
+        // println!("fetch_next_rat_tiles: sqzr_area_duals: {:?}", sqzr_area_duals);
+        // println!("fetch_next_rat_tiles: squeeze_dir: {:?}", squeeze_dir);
+        // println!("fetch_next_rat_tiles: possible squeeze directions of: {:?}: {:?}: {:?}", hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(0).unwrap()).unwrap(), sqzr_area_duals.get(0).unwrap(), tmp_debug_0);
+        // println!("fetch_next_rat_tiles: possible squeeze directions of: {:?}: {:?}: {:?}", hm_sqzdrarea_tiletype.get(sqzr_area_duals.get(1).unwrap()).unwrap(), sqzr_area_duals.get(1).unwrap(), tmp_debug_1);
+        // println!("fetch_next_rat_tiles: tiles_intersect_dir_vec: {:?}", tiles_intersect_dir_vec);
+        // println!("###################################################");
     }
 
-    // iterate over before shit
+    if squeezed_areas_we_move.len() > 0 {
+        Some(squeezed_areas_we_move)
+    }
+    else {
+        None
+    }
 
-    // get_squeeze_direction(SQZDRAREA1; SQZDRAREA2) -> Res<Directoin> = $LALAL
-
-    // hm_sqzdrarea_tiletype.get(SQZDRAREA1).get_directions(args) --> compare intersect avec $LALAL --> if no intersection -> bloquant, else free tile fetched
-
-
-
-    Ok(())
 }
 
 
@@ -1027,6 +1072,21 @@ fn define_sure_out(hm_tiles: &mut HashMap<Coords, Tile>, max_x: &i64, max_y: &i6
     loop_contouring
 }
 
+/// Returns the next undefined tile of the hmtiles
+fn get_next_undefined(hm_tiles: &HashMap<Coords, Tile>, max_x: &i64, max_y: &i64) -> Option<Tile> {
+    for y in 0..max_y+1 {
+        for x in 0..max_x+1 {
+            let tile = hm_tiles.get(&Coords::new(x, y)).unwrap();
+            match tile.status {
+                TileStatus::Undefined => {
+                    return Some(*tile);
+                }
+                _ => { continue; }
+            }
+        }
+    }
+    None
+}
 
 fn main() -> Result<(), i8>{
     let filename: &str;
@@ -1070,15 +1130,50 @@ fn main() -> Result<(), i8>{
 
     let loop_contouring = define_sure_out(&mut hm_tiles, &max_x, &max_y, false, false);
     // display_tiles(&hm_tiles, &max_x, &max_y);
-    display_tiles_map_outer_loop_overlap(&hm_tiles, &loop_contouring, &max_x, &max_y);
+    // display_tiles_map_outer_loop_overlap(&hm_tiles, &loop_contouring, &max_x, &max_y);
 
-    let mut sqzd_rat = SqueezedRat::new([Coords::new(71, 19), Coords::new(71, 20)]).unwrap();
-
-    display_tiles_map_with_squeezed_rat(&hm_tiles, &sqzd_rat, &max_x, &max_y);
-
-    println!("sqzd coords: {:?}", sqzd_rat.coords);
-
-    fetch_next_rat_tiles(&mut sqzd_rat, &mut hm_tiles);
-
+    let mut squeezed_rat: SqueezedRat;
+    // something like recursive function called progress_one_path that takes a a list of the possible coords taht we can go to
+    // as a sqzd rat and that for loop recursive call itself until each path is NULL
+    // we should also forbidto go back where we previously were ti avoid deadlocks (can do like forbid to go west if direction we face is east)
+    loop {
+        let undef_tile = get_next_undefined(&hm_tiles, &max_x, &max_y);
+        match undef_tile {
+            Some(tile) => {
+                // Get surroundings
+                let north_tile = hm_tiles.get(&(tile.coords - Coords::new(0, -1))).unwrap().clone();
+                let south_tile = hm_tiles.get(&(tile.coords - Coords::new(0, 1))).unwrap().clone();
+                let west_tile= hm_tiles.get(&(tile.coords - Coords::new(-1, 0))).unwrap().clone();
+                let east_tile= hm_tiles.get(&(tile.coords - Coords::new(1, 0))).unwrap().clone();
+                // We will try to squeeze on each side of the undefined tile
+                for surrounding_tile in [north_tile, east_tile, south_tile, west_tile] {
+                    squeezed_rat = SqueezedRat::new([tile.coords, surrounding_tile.coords]).unwrap_or(SqueezedRat::new([surrounding_tile.coords, tile.coords]).unwrap());
+                    let possible_sqzdr_coords = fetch_next_rat_tiles(&mut squeezed_rat, &hm_tiles);
+                    match possible_sqzdr_coords {
+                        Some(vec_coords) => {
+                            for vec in vec_coords {
+                                for coord in vec {
+                                    let tmp_status = hm_tiles.get(&coord).unwrap().status;
+                                    match tmp_status {
+                                        TileStatus::In | TileStatus::Out => {
+                                            hm_tiles.get_mut(&coord).unwrap().status = tmp_status;
+                                        }
+                                        _ => { continue; }
+                                    }
+                                }
+                            }
+                                // match hm_tiles.get(vec_coords[0]).unwrap().status {
+                                //     TileStatus::In => {
+                                //         hm_tiles.get_mut(vec_coords[0]).unwrap().status = In
+                                //     }
+                            }
+                        None => { continue; }
+                    }
+                }
+            }
+            None => { break; }
+        }
+    }
     Ok(())
 }
+
